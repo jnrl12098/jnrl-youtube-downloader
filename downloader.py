@@ -1,13 +1,28 @@
 from tkinter import *
+from tkinter import messagebox
 from tkinter.ttk import *
 from pytube import YouTube
 from time import *
 
 yt = None
+max_file_size: int = None
+
+def on_progress(stream, chunk, bytes_remaining):
+    global max_file_size
+    bytes_downloaded = max_file_size - bytes_remaining
+    percent_downloaded = (bytes_downloaded / max_file_size)
+    # TODO UPDATE PROGRESS BAR
+    downloadProgressBar['value'] = percent_downloaded * 100
+    mainWindow.update_idletasks()
+    print(convertBytes(bytes_downloaded) + " downloaded")
+
+def on_complete(stream, path):
+    messagebox.showinfo("Information", "Download complete.")
+    downloadButton['state'] = NORMAL
 
 def searchVideo(videoURL, videoResolution):
     global yt
-    yt = YouTube(videoURL)
+    yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
     print(yt.streams.filter(res = videoResolution))
     print(yt.author)
     # print(yt.check_availability()) # if available, returns None
@@ -22,11 +37,13 @@ def searchVideo(videoURL, videoResolution):
     # yt.register_on_progress_callback()
 
 def downloadVideo(videoTagNumber):
-    global yt
+    global yt, max_file_size
     stream = yt.streams.get_by_itag(videoTagNumber)
-    # stream.download()
+    max_file_size = stream.filesize
     print(stream.filesize)
     print(convertBytes(stream.filesize))
+    stream.download()
+    downloadButton['state'] = DISABLED
 
 def convertBytes(bytes: int) -> str:
     if bytes < 1024:
@@ -46,6 +63,7 @@ resolutionEntrybox = Entry(mainWindow)
 resolutionLabel = Label(mainWindow, text = "resolution")
 idEntrybox = Entry(mainWindow)
 downloadButton = Button(mainWindow, text = "Download", command = lambda: downloadVideo(idEntrybox.get()))
+downloadProgressBar = Progressbar(mainWindow, orient = HORIZONTAL)
 
 urlEntrybox.grid(row = 1, column = 0)
 searchButton.grid(row = 1, column = 1)
@@ -53,5 +71,6 @@ resolutionEntrybox.grid(row = 2, column = 0)
 resolutionLabel.grid(row = 2, column = 1)
 idEntrybox.grid(row = 3, column = 0)
 downloadButton.grid(row = 3, column = 1)
+downloadProgressBar.grid(row = 4, column = 0)
 
 mainWindow.mainloop()
