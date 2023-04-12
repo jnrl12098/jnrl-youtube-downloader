@@ -12,7 +12,6 @@ def on_progress(stream, chunk, bytes_remaining):
     global max_file_size
     bytes_downloaded = max_file_size - bytes_remaining
     percent_downloaded = (bytes_downloaded / max_file_size)
-    # TODO UPDATE PROGRESS BAR
     downloadProgressBar['value'] = percent_downloaded * 100
     mainWindow.update_idletasks()
     print(convertBytes(bytes_downloaded) + " downloaded")
@@ -35,7 +34,6 @@ def searchVideo(videoURL, videoResolution):
     print(timeString)
     print(yt.title)
     print(yt.thumbnail_url)
-    # yt.register_on_progress_callback()
 
 def downloadVideo(videoTagNumber):
     global yt, max_file_size
@@ -43,7 +41,7 @@ def downloadVideo(videoTagNumber):
     max_file_size = stream.filesize
     print(stream.filesize)
     print(convertBytes(stream.filesize))
-    x = threading.Thread(target = stream.download)
+    x = threading.Thread(target = stream.download, daemon = True)
     x.start()
     downloadButton['state'] = DISABLED
 
