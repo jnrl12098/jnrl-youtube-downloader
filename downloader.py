@@ -3,6 +3,7 @@ from tkinter import messagebox
 from tkinter.ttk import *
 from pytube import YouTube
 from time import *
+import threading
 
 yt = None
 max_file_size: int = None
@@ -42,7 +43,8 @@ def downloadVideo(videoTagNumber):
     max_file_size = stream.filesize
     print(stream.filesize)
     print(convertBytes(stream.filesize))
-    stream.download()
+    x = threading.Thread(target = stream.download)
+    x.start()
     downloadButton['state'] = DISABLED
 
 def convertBytes(bytes: int) -> str:
