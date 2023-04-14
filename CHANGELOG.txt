@@ -1,0 +1,23 @@
+20230414
+YT-DL-GUI Version 0.04
+* implemented a feature which shows the thumbnail of the video that was searched
+	* the function for displaying the thumbnail is placed in a separate non-daemon thread
+	* thumbnail is resized from 640x480 to 240x180
+* implemented a "Show Threads" button for debugging purposes; to show the number of active threads at any time
+
+20230412
+YT-DL-GUI Version 0.03
+* download function was given its own thread to prevent the Tk window from not responding while the download is going on
+* the thread was set to be a daemon thread to allow the download to be interrupted/cancelled by closing the Tk window
+
+20230411
+YT-DL-GUI Version 0.02
+* added a progress bar to show the progress of the download
+* a messagebox will pop up to inform the user that the download has been finished
+* the download button will be disabled when the download function has started,
+  and will return to normal when the download function is finished
+YT-DL-GUI Version 0.01
+* bare minimum to download a video: 
+	* search for a video using URL, filter by resolution is optional
+	* search will result in a list of options available to download
+	* download by entering the tag of the preferred option
