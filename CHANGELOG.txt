@@ -1,4 +1,8 @@
 20230414
+YT-DL-GUI Version 0.05
+* thumbnail is now placed in a frame which also includes other details such as:
+	* title, length (H:M:S), channel name, view count (in youtube format), date published (not accurate with date shown in page though)
+	* could not compute video age (i.e. published xx ago) because publish date is off by a few days and lacks hours-minutes-seconds
 YT-DL-GUI Version 0.04
 * implemented a feature which shows the thumbnail of the video that was searched
 	* the function for displaying the thumbnail is placed in a separate non-daemon thread

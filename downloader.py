@@ -26,23 +26,38 @@ def on_complete(stream, path):
 
 def searchVideo(videoURL, videoResolution):
     global yt
+    downloadProgressBar["value"] = 0
     searchButton["state"] = DISABLED    
     yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
     
     display_image_thread = threading.Thread(target = display_image, args = (yt.thumbnail_url,)) # (x, ) to emphasize that x is one argument and not a list of individual characters
     display_image_thread.start()
     
-    print(yt.streams.filter(res = videoResolution))
-    print(yt.author)
+    filter_streams_thread = threading.Thread(target = filter_streams, args = (videoResolution,))
+    filter_streams_thread.start()
     # print(yt.check_availability()) # if available, returns None
     # print(yt.description)
     if yt.length < 3600:   
-        timeString = strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
+        video_length = "Length: " + strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
     else:        
-        timeString = strftime("%H:%M:%S", gmtime(yt.length))
-    print(timeString)
-    print(yt.title)
-    print(yt.thumbnail_url)
+        video_length = "Length: " + strftime("%H:%M:%S", gmtime(yt.length))
+    
+    if yt.views < 1000:
+        video_views = f"{yt.views} views"
+    elif yt.views < 1000*10:
+        video_views = f"{yt.views/1000: .1f}K views"
+    elif yt.views < 1000*1000:
+        video_views = f"{int(yt.views/1000)}K views"
+    elif yt.views < 1000*1000*10:
+        video_views = f"{yt.views/1000/1000: .1f}M views"
+    else:
+        video_views = f"{int(yt.views/1000/1000)} M views"
+
+    title_label.configure(text = yt.title)
+    time_label.configure(text = video_length)
+    channel_label.configure(text = yt.author)
+    views_label.configure(text = video_views)
+    date_label.configure(text = "Published on: " + yt.publish_date.strftime("%b %m, %Y"))
 
 def display_image(thumbnail_url):
     global photoimage_holder
@@ -52,11 +67,14 @@ def display_image(thumbnail_url):
         with Image.open(thumbnail_bytes) as thumbnail_image:
             effective_image = thumbnail_image.resize((240, 180))
             thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-            thumbnail_frame.configure(image = thumbnail_photoimage)
+            thumbnail_box.configure(image = thumbnail_photoimage)
     # keep a reference to PhotoImage object so that it appears properly
     photoimage_holder = thumbnail_photoimage
 
     searchButton["state"] = NORMAL
+
+def filter_streams(video_resolution):
+    print(yt.streams.filter(res = video_resolution))
 
 def downloadVideo(videoTagNumber):
     global yt, max_file_size
@@ -91,8 +109,23 @@ resolutionLabel = Label(mainWindow, text = "resolution")
 idEntrybox = Entry(mainWindow)
 downloadButton = Button(mainWindow, text = "Download", command = lambda: downloadVideo(idEntrybox.get()))
 downloadProgressBar = Progressbar(mainWindow, orient = HORIZONTAL)
-thumbnail_frame = Label(mainWindow, image = None)
+details_frame = Label(mainWindow)
 threadsButton = Button(mainWindow, text = "Threads", command = showThreads)
+
+details_frame = Frame(mainWindow)
+thumbnail_box = Label(details_frame)
+title_label = Label(details_frame)
+time_label = Label(details_frame)
+channel_label = Label(details_frame)
+views_label = Label(details_frame)
+date_label = Label(details_frame)
+
+thumbnail_box.grid(row = 0, column = 0, rowspan = 5)
+title_label.grid(row = 0, column = 1)
+time_label.grid(row = 1, column = 1)
+channel_label.grid(row = 2, column = 1)
+views_label.grid(row = 3, column = 1)
+date_label.grid(row = 4, column = 1)
 
 urlEntrybox.grid(row = 1, column = 0)
 searchButton.grid(row = 1, column = 1)
@@ -101,7 +134,7 @@ resolutionLabel.grid(row = 2, column = 1)
 idEntrybox.grid(row = 3, column = 0)
 downloadButton.grid(row = 3, column = 1)
 downloadProgressBar.grid(row = 4, column = 0)
-thumbnail_frame.grid(row = 5, column = 0)
 threadsButton.grid(row = 4, column = 1)
+details_frame.grid(row = 5, column = 0, columnspan = 2)
 
 mainWindow.mainloop()
