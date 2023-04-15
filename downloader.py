@@ -78,7 +78,8 @@ def display_image(thumbnail_url):
     searchButton["state"] = NORMAL
 
 def filter_streams(video_resolution):
-    print(yt.streams.filter(res = video_resolution))
+    for stream in yt.streams.filter(res = video_resolution):
+        print(stream)
 
 def downloadVideo(videoTagNumber):
     global yt, max_file_size
