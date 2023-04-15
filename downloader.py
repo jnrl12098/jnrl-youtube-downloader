@@ -8,17 +8,17 @@ import urllib.request
 import io
 from PIL import Image, ImageTk
 
-yt = None
+yt: YouTube = None
 max_file_size: int = None
 photoimage_holder: PhotoImage = None
 
 def on_progress(stream, chunk, bytes_remaining):
     global max_file_size
-    bytes_downloaded = max_file_size - bytes_remaining
-    percent_downloaded = (bytes_downloaded / max_file_size)
-    downloadProgressBar['value'] = percent_downloaded * 100
+    bytes_downloaded: int = max_file_size - bytes_remaining
+    percent_downloaded: float = bytes_downloaded / max_file_size
+    downloadProgressBar["value"] = percent_downloaded * 100
     mainWindow.update_idletasks()
-    print(convertBytes(bytes_downloaded) + " downloaded")
+    print(convertBytes(bytes_downloaded) + " downloaded") # for debugging
 
 def on_complete(stream, path):
     messagebox.showinfo("Information", "Download complete.")
@@ -26,9 +26,11 @@ def on_complete(stream, path):
 
 def searchVideo(videoURL, videoResolution):
     global yt
-    downloadProgressBar["value"] = 0
-    searchButton["state"] = DISABLED    
     yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
+    video_length: StringVar
+    video_views: StringVar
+    downloadProgressBar["value"] = 0
+    searchButton["state"] = DISABLED        
     
     display_image_thread = threading.Thread(target = display_image, args = (yt.thumbnail_url,)) # (x, ) to emphasize that x is one argument and not a list of individual characters
     display_image_thread.start()
