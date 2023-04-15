@@ -29,7 +29,9 @@ def searchVideo(videoURL, videoResolution):
     yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
     video_length: StringVar
     video_views: StringVar
-    downloadProgressBar["value"] = 0
+
+    if downloadProgressBar["value"] != 0:
+        downloadProgressBar["value"] = 0
     searchButton["state"] = DISABLED        
     
     display_image_thread = threading.Thread(target = display_image, args = (yt.thumbnail_url,)) # (x, ) to emphasize that x is one argument and not a list of individual characters
@@ -88,6 +90,8 @@ def downloadVideo(videoTagNumber):
     x.start()
     downloadButton['state'] = DISABLED
 
+# UTILITY FUNCTIONS
+# convert bytes to KB/MB/GB for better readability
 def convertBytes(bytes: int) -> str:
     if bytes < 1024:
         return "{i} B".format(bytes)
@@ -97,7 +101,7 @@ def convertBytes(bytes: int) -> str:
         return "{:.2f} MB".format(bytes/1024/1024)
     else:
         return "{:.2f} GB".format(bytes/1024/1024/1024)
-
+# show threads for debugging purposes
 def showThreads():
     print(threading.active_count())
     print(threading.enumerate())
