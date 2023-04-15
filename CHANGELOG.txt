@@ -1,4 +1,15 @@
 20230414
+YT-DL-GUI Version 0.06
+* removed feature to specify video resolution and input stream identification tag (itag)
+* replaced the above feature with a feature that shows user the list of available streams, 
+  and user can download a stream by choosing from the list of options then clicking the download button
+* rearranged widgets to show in the following order:
+	* enter youtube video URL
+	* show youtube video details
+	* download details
+	* list of stream options
+
+20230414
 YT-DL-GUI Version 0.05
 * thumbnail is now placed in a frame which also includes other details such as:
 	* title, length (H:M:S), channel name, view count (in youtube format), date published (not accurate with date shown in page though)
