@@ -1,8 +1,9 @@
-20230414
+20230415
 YT-DL-GUI Version 0.06
 * removed feature to specify video resolution and input stream identification tag (itag)
 * replaced the above feature with a feature that shows user the list of available streams, 
   and user can download a stream by choosing from the list of options then clicking the download button
+	* itag of each stream is contained in a global variable: list[int] and these are IDEALLY sorted in the same order as the streams in the listbox
 * rearranged widgets to show in the following order:
 	* enter youtube video URL
 	* show youtube video details
