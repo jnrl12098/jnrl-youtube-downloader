@@ -17,29 +17,27 @@ def on_progress(stream, chunk, bytes_remaining):
     global max_file_size
     bytes_downloaded: int = max_file_size - bytes_remaining
     percent_downloaded: float = bytes_downloaded / max_file_size
-    downloadProgressBar["value"] = percent_downloaded * 100
-    mainWindow.update_idletasks()
-    print(convertBytes(bytes_downloaded) + " downloaded") # for debugging
+    download_progress_bar["value"] = percent_downloaded * 100
+    main_window.update_idletasks()
+    print(convert_bytes(bytes_downloaded) + " downloaded") # for debugging
 
 def on_complete(stream, path):
     messagebox.showinfo("Information", "Download complete.")
-    downloadButton['state'] = NORMAL
+    download_button['state'] = NORMAL
 
-def searchVideo(videoURL):
+def search_video(videoURL):
     global yt
     yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
     video_length: StringVar
     video_views: StringVar
 
-    if downloadProgressBar["value"] != 0:
-        downloadProgressBar["value"] = 0
-    searchButton["state"] = DISABLED  
+    if download_progress_bar["value"] != 0:
+        download_progress_bar["value"] = 0
+    search_button["state"] = DISABLED  
         
-    display_streams_thread = threading.Thread(target = display_streams, args = (yt,))
-    display_streams_thread.start()          
+    threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
+    threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
     
-    display_image_thread = threading.Thread(target = display_image, args = (yt.thumbnail_url,)) # (x, ) to emphasize that x is one argument and not a list of individual characters
-    display_image_thread.start()
     if yt.length < 3600:   
         video_length = "Length: " + strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
     else:        
@@ -54,11 +52,11 @@ def searchVideo(videoURL):
         video_views = f"{yt.views/1000/1000: .1f}M views"
     else:
         video_views = f"{int(yt.views/1000/1000)} M views"
-    title_label.configure(text = yt.title)
-    time_label.configure(text = video_length)
-    channel_label.configure(text = yt.author)
-    views_label.configure(text = video_views)
-    date_label.configure(text = "Published on: " + yt.publish_date.strftime("%b %m, %Y"))
+    title_label["text"] = yt.title
+    time_label["text"] = video_length
+    channel_label["text"] = yt.author
+    views_label["text"] = video_views
+    date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
     details_frame.grid()
 
 def display_image(thumbnail_url):
@@ -69,10 +67,10 @@ def display_image(thumbnail_url):
         with Image.open(thumbnail_bytes) as thumbnail_image:
             effective_image = thumbnail_image.resize((240, 180))
             thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-            thumbnail_box.configure(image = thumbnail_photoimage)
+            thumbnail_box["image"] = thumbnail_photoimage
     # keep a reference to PhotoImage object so that it appears properly
     photoimage_holder = thumbnail_photoimage
-    searchButton["state"] = NORMAL
+    search_button["state"] = NORMAL
 
 def display_streams(yt_object):
     global tag_list
@@ -82,31 +80,30 @@ def display_streams(yt_object):
     for stream in yt_object.streams.filter():
         print(stream) # for debugging; to check if tag_list and listbox match
         if stream.type == "video":
-            item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convertBytes(stream.filesize) + ")"
+            item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
             if stream.is_adaptive:
                 item += " (no audio)"
         elif stream.type == "audio":
-            item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convertBytes(stream.filesize) + ")"
+            item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
         options_listbox.insert(END, item)
         tag_list.append(stream.itag)
     options_frame.grid()
-    searchButton["state"] = NORMAL
+    search_button["state"] = NORMAL
 
 def advanced_options():
     print("You pressed the advanced options button.")
 
-def downloadVideo():
+def download_video():
     global yt, max_file_size    
-    downloadButton['state'] = DISABLED
+    download_button['state'] = DISABLED
     print(tag_list[options_listbox.curselection()[0]]) # for debugging; to check if tag_list and listbox match
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
     max_file_size = stream.filesize
-    x = threading.Thread(target = stream.download, daemon = True)
-    x.start()
+    threading.Thread(target = stream.download, daemon = True).start()
 
 # UTILITY FUNCTIONS
 # convert bytes to KB/MB/GB for better readability
-def convertBytes(bytes: int) -> str:
+def convert_bytes(bytes: int) -> str:
     if bytes < 1024:
         return "{i} B".format(bytes)
     elif bytes < (1024*1024):
@@ -116,32 +113,32 @@ def convertBytes(bytes: int) -> str:
     else:
         return "{:.2f} GB".format(bytes/1024/1024/1024)
 # show threads for debugging 
-def showThreads():
+def show_threads():
     print(threading.active_count())
     print(threading.enumerate())
 
-mainWindow = Tk()
+main_window = Tk()
 
-urlLabel = Label(mainWindow, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
-urlEntrybox = Entry(mainWindow, width = 50)
-searchButton = Button(mainWindow, text = "Search", command = lambda: searchVideo(urlEntrybox.get()))
-downloadButton = Button(mainWindow, text = "Download", command = downloadVideo)
-downloadProgressBar = Progressbar(mainWindow, orient = HORIZONTAL, length = 200)
-details_frame = Frame(mainWindow)
-options_frame = Frame(mainWindow)
+url_label = Label(main_window, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
+url_entrybox = Entry(main_window, width = 50)
+search_button = Button(main_window, text = "Search", command = lambda: search_video(url_entrybox.get()))
+download_button = Button(main_window, text = "Download", command = download_video)
+download_progress_bar = Progressbar(main_window, orient = HORIZONTAL, length = 200)
+details_frame = Frame(main_window)
+options_frame = Frame(main_window)
 
-urlLabel.grid(row = 0, column = 0)
-urlEntrybox.grid(row = 1, column = 0)
-searchButton.grid(row = 1, column = 1)
+url_label.grid(row = 0, column = 0)
+url_entrybox.grid(row = 1, column = 0)
+search_button.grid(row = 1, column = 1)
 details_frame.grid(row = 2, column = 0, columnspan = 2)
 details_frame.grid_remove()
-downloadProgressBar.grid(row = 3, column = 0)
-downloadButton.grid(row = 3, column = 1)
+download_progress_bar.grid(row = 3, column = 0)
+download_button.grid(row = 3, column = 1)
 options_frame.grid(row = 4, column = 0, columnspan = 2)
 options_frame.grid_remove()
 
-threadsButton = Button(mainWindow, text = "Threads", command = showThreads)
-threadsButton.grid(row = 0, column = 1)
+threads_button = Button(main_window, text = "Threads", command = show_threads)
+threads_button.grid(row = 0, column = 1)
 
 # SEARCH VIDEO DETAILS WIDGETS
 thumbnail_box = Label(details_frame)
@@ -165,4 +162,4 @@ options_label.grid(row = 0, column = 0)
 advanced_options_button.grid(row = 0, column = 1)
 options_listbox.grid(row = 1, column = 0, columnspan = 2)
 
-mainWindow.mainloop()
+main_window.mainloop()

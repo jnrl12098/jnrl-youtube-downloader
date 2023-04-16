@@ -1,3 +1,8 @@
+20230416
+YT-DL-GUI Version 0.06
+* decided to change from camelCase to snake_case for consistency with tests of components
+* uploaded tests of components to go back to in the future
+
 20230415
 YT-DL-GUI Version 0.06
 * removed feature to specify video resolution and input stream identification tag (itag)
