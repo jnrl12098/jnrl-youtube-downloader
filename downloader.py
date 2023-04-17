@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter import messagebox
 from tkinter.ttk import *
-from pytube import YouTube
+from pytube import YouTube, request
 from time import *
 import threading
 import urllib.request
@@ -75,6 +75,8 @@ def display_image(thumbnail_url):
 def display_streams(yt_object):
     global tag_list
     item: StringVar
+    filename_entrybox.delete(0, END)
+    filename_entrybox.insert(0, yt_object.title)
     tag_list.clear()
     options_listbox.delete(0, END)
     for stream in yt_object.streams.filter():
@@ -99,7 +101,24 @@ def download_video():
     print(tag_list[options_listbox.curselection()[0]]) # for debugging; to check if tag_list and listbox match
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
     max_file_size = stream.filesize
-    threading.Thread(target = stream.download, daemon = True).start()
+    # threading.Thread(target = stream.download, daemon = True).start()
+    filename = filename_entrybox.get() + "." + stream.subtype
+    with open(filename, "wb") as download_file:
+        stream = request.stream(stream.url) # turn the stream into an iterable where pytube's default chunk size is 9MB
+        bytes_downloaded: int = 0
+        while True:
+            chunk = next(stream, None)  
+            if chunk is not None:
+                download_file.write(chunk)
+                bytes_downloaded += len(chunk)
+                percent_downloaded: float = bytes_downloaded / max_file_size
+                download_progress_bar["value"] = percent_downloaded * 100
+                main_window.update_idletasks()
+            else:
+                messagebox.showinfo("Information", "Download complete.")
+                download_button['state'] = NORMAL
+                break
+    
 
 # UTILITY FUNCTIONS
 # convert bytes to KB/MB/GB for better readability
@@ -155,11 +174,15 @@ views_label.grid(row = 3, column = 1)
 date_label.grid(row = 4, column = 1)
 
 # DOWNLOAD OPTIONS WIDGETS
+filename_label = Label(options_frame, text = "Enter preferred file name:", width = 50, justify = "left")
+filename_entrybox = Entry(options_frame, width = 50)
 options_label = Label(options_frame, text = "Options:")
 advanced_options_button = Button(options_frame, text = "Advanced Options", command = advanced_options)
 options_listbox = Listbox(options_frame, width = 50)
-options_label.grid(row = 0, column = 0)
-advanced_options_button.grid(row = 0, column = 1)
-options_listbox.grid(row = 1, column = 0, columnspan = 2)
+filename_label.grid(row = 0, column = 0)
+filename_entrybox.grid(row = 1, column = 0)
+options_label.grid(row = 2, column = 0)
+advanced_options_button.grid(row = 2, column = 1)
+options_listbox.grid(row = 3, column = 0, columnspan = 2)
 
 main_window.mainloop()

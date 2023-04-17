@@ -1,3 +1,10 @@
+20230417
+YT-DL-GUI Version 0.07
+* user can now enter their preferred file name for the download file
+* switched from stream.download() to manually writing from the iterable stream
+	* this was necessary to introduce pause/resume and cancel features
+	* this makes the on_progress and on_complete functions unnecessary, but will keep them for now to use as reference
+
 20230416
 YT-DL-GUI Version 0.06
 * decided to change from camelCase to snake_case for consistency with tests of components
