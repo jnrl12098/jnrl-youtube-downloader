@@ -1,4 +1,11 @@
 20230417
+YT-DL-GUI Version 0.08
+* implemented pause/resume (toggle) and cancel download features
+	* subject to change when download queue is implemented, but for now, the download button is disabled while downloading is in progress or paused
+* added a label that will display the download progress in text (bytes downloaded vs filesize)
+* the user will be warned if the download button was clicked but no stream was selected, and the download will not start
+* organized widgets into frames; main_window will consist only of frames that are packed while frames consist of widgets that are arranged in a grid
+* implemented a feature where the frames of widgets disappear when the url is invalid, along with an error message
 YT-DL-GUI Version 0.07
 * user can now enter their preferred file name for the download file
 * switched from stream.download() to manually writing from the iterable stream

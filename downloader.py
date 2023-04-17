@@ -9,55 +9,57 @@ import io
 from PIL import Image, ImageTk
 
 yt: YouTube = None
-max_file_size: int = None
 photoimage_holder: PhotoImage = None
 tag_list: list[int] = []
-
-def on_progress(stream, chunk, bytes_remaining):
-    global max_file_size
-    bytes_downloaded: int = max_file_size - bytes_remaining
-    percent_downloaded: float = bytes_downloaded / max_file_size
-    download_progress_bar["value"] = percent_downloaded * 100
-    main_window.update_idletasks()
-    print(convert_bytes(bytes_downloaded) + " downloaded") # for debugging
-
-def on_complete(stream, path):
-    messagebox.showinfo("Information", "Download complete.")
-    download_button['state'] = NORMAL
+is_paused: bool = False
+is_cancelled: bool = False
 
 def search_video(videoURL):
     global yt
-    yt = YouTube(videoURL, on_progress_callback = on_progress, on_complete_callback = on_complete)
-    video_length: StringVar
-    video_views: StringVar
+    try:
+        yt = YouTube(videoURL) #, on_progress_callback = on_progress, on_complete_callback = on_complete)
+        video_length: StringVar
+        video_views: StringVar
 
-    if download_progress_bar["value"] != 0:
-        download_progress_bar["value"] = 0
-    search_button["state"] = DISABLED  
+        if download_progress_bar["value"] != 0:
+            download_progress_bar["value"] = 0
+        search_button["state"] = DISABLED  
+
+        threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
+        threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
         
-    threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
-    threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
-    
-    if yt.length < 3600:   
-        video_length = "Length: " + strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
-    else:        
-        video_length = "Length: " + strftime("%H:%M:%S", gmtime(yt.length))    
-    if yt.views < 1000:
-        video_views = f"{yt.views} views"
-    elif yt.views < 1000*10:
-        video_views = f"{yt.views/1000: .1f}K views"
-    elif yt.views < 1000*1000:
-        video_views = f"{int(yt.views/1000)}K views"
-    elif yt.views < 1000*1000*10:
-        video_views = f"{yt.views/1000/1000: .1f}M views"
-    else:
-        video_views = f"{int(yt.views/1000/1000)} M views"
-    title_label["text"] = yt.title
-    time_label["text"] = video_length
-    channel_label["text"] = yt.author
-    views_label["text"] = video_views
-    date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
-    details_frame.grid()
+        if yt.length < 3600:   
+            video_length = "Length: " + strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
+        else:        
+            video_length = "Length: " + strftime("%H:%M:%S", gmtime(yt.length))    
+        if yt.views < 1000:
+            video_views = f"{yt.views} views"
+        elif yt.views < 1000*10:
+            video_views = f"{yt.views/1000: .1f}K views"
+        elif yt.views < 1000*1000:
+            video_views = f"{int(yt.views/1000)}K views"
+        elif yt.views < 1000*1000*10:
+            video_views = f"{yt.views/1000/1000: .1f}M views"
+        else:
+            video_views = f"{int(yt.views/1000/1000)} M views"
+        title_label["text"] = yt.title
+        time_label["text"] = video_length
+        channel_label["text"] = yt.author
+        views_label["text"] = video_views
+        date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
+        details_frame.pack()
+        download_frame.pack()
+        search_button["state"] = NORMAL
+    except Exception as e:
+        if details_frame.winfo_ismapped():
+            details_frame.pack_forget()
+        if download_frame.winfo_ismapped():
+            download_frame.pack_forget()
+        if options_frame.winfo_ismapped():
+            options_frame.pack_forget()
+        search_button["state"] = NORMAL
+        messagebox.showerror(title = "ERROR", message = "Error: Invalid URL")
+        print(e)
 
 def display_image(thumbnail_url):
     global photoimage_holder
@@ -70,7 +72,6 @@ def display_image(thumbnail_url):
             thumbnail_box["image"] = thumbnail_photoimage
     # keep a reference to PhotoImage object so that it appears properly
     photoimage_holder = thumbnail_photoimage
-    search_button["state"] = NORMAL
 
 def display_streams(yt_object):
     global tag_list
@@ -89,36 +90,69 @@ def display_streams(yt_object):
             item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
         options_listbox.insert(END, item)
         tag_list.append(stream.itag)
-    options_frame.grid()
-    search_button["state"] = NORMAL
+    options_frame.pack()
 
 def advanced_options():
     print("You pressed the advanced options button.")
 
-def download_video():
-    global yt, max_file_size    
-    download_button['state'] = DISABLED
-    print(tag_list[options_listbox.curselection()[0]]) # for debugging; to check if tag_list and listbox match
+def download_stream():
+    global yt, is_paused, is_cancelled  
+    download_button["state"] = DISABLED
+    pause_button["state"] = NORMAL
+    cancel_button["state"] = NORMAL
+    # print(tag_list[options_listbox.curselection()[0]]) # for debugging; to check if tag_list and listbox match
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
-    max_file_size = stream.filesize
+    filesize: int = stream.filesize
+    stream_url: str = stream.url
     # threading.Thread(target = stream.download, daemon = True).start()
-    filename = filename_entrybox.get() + "." + stream.subtype
+    filename: str = filename_entrybox.get() + "." + stream.subtype
+    converted_filesize: str = convert_bytes(filesize)
     with open(filename, "wb") as download_file:
-        stream = request.stream(stream.url) # turn the stream into an iterable where pytube's default chunk size is 9MB
+        is_paused = False
+        is_cancelled = False
+        stream = request.stream(stream_url) # turn the stream into an iterable where pytube's default chunk size is 9MB
         bytes_downloaded: int = 0
         while True:
+            if is_cancelled:
+                break
+            if is_paused:
+                continue
             chunk = next(stream, None)  
             if chunk is not None:
                 download_file.write(chunk)
                 bytes_downloaded += len(chunk)
-                percent_downloaded: float = bytes_downloaded / max_file_size
-                download_progress_bar["value"] = percent_downloaded * 100
+                download_progress_bar["value"] = (bytes_downloaded / filesize) * 100
+                progress_label["text"] = convert_bytes(bytes_downloaded) + " / " + converted_filesize
                 main_window.update_idletasks()
             else:
                 messagebox.showinfo("Information", "Download complete.")
-                download_button['state'] = NORMAL
                 break
+    download_button["state"] = NORMAL
+    pause_button["state"] = DISABLED
+    pause_button["text"] = "Pause"
+    cancel_button["state"] = DISABLED
+    download_progress_bar["value"] = 0
+    progress_label["text"] = ""
+
+def start_download():
+    if len(options_listbox.curselection()) == 1:
+        threading.Thread(target = download_stream, daemon = True).start()
+    else:
+        messagebox.showinfo(title = "Information", message = "Choose a stream to download.")
     
+def toggle_download():
+    global is_paused
+    is_paused = not is_paused
+    if is_paused:
+        pause_button["text"] = "Resume"
+    else:
+        pause_button["text"] = "Pause"
+
+def cancel_download():
+    global is_cancelled
+    is_cancelled = True
+    download_progress_bar["value"] = 0
+    messagebox.showinfo(title = "Information", message = "Download was cancelled.")
 
 # UTILITY FUNCTIONS
 # convert bytes to KB/MB/GB for better readability
@@ -138,26 +172,35 @@ def show_threads():
 
 main_window = Tk()
 
-url_label = Label(main_window, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
-url_entrybox = Entry(main_window, width = 50)
-search_button = Button(main_window, text = "Search", command = lambda: search_video(url_entrybox.get()))
-download_button = Button(main_window, text = "Download", command = download_video)
-download_progress_bar = Progressbar(main_window, orient = HORIZONTAL, length = 200)
+search_frame = Frame(main_window)
+download_frame = Frame(main_window)
 details_frame = Frame(main_window)
 options_frame = Frame(main_window)
 
+search_frame.pack()
+
+# SEARCH WIDGETS
+url_label = Label(search_frame, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
+url_entrybox = Entry(search_frame, width = 50)
+search_button = Button(search_frame, text = "Search", command = lambda: search_video(url_entrybox.get()))
 url_label.grid(row = 0, column = 0)
 url_entrybox.grid(row = 1, column = 0)
 search_button.grid(row = 1, column = 1)
-details_frame.grid(row = 2, column = 0, columnspan = 2)
-details_frame.grid_remove()
-download_progress_bar.grid(row = 3, column = 0)
-download_button.grid(row = 3, column = 1)
-options_frame.grid(row = 4, column = 0, columnspan = 2)
-options_frame.grid_remove()
-
-threads_button = Button(main_window, text = "Threads", command = show_threads)
+# show threads for debugging
+threads_button = Button(search_frame, text = "Threads", command = show_threads)
 threads_button.grid(row = 0, column = 1)
+
+# DOWNLOAD STREAM WIDGETS
+download_progress_bar = Progressbar(download_frame, orient = HORIZONTAL, length = 200)
+progress_label = Label(download_frame)
+download_button = Button(download_frame, text = "Download", command = start_download)
+pause_button = Button(download_frame, text = "Pause", state = DISABLED, command = toggle_download)
+cancel_button = Button(download_frame, text = "Cancel", state = DISABLED, command = cancel_download)
+download_progress_bar.grid(row = 0, column = 0, columnspan = 3)
+progress_label.grid(row =1, column = 0, columnspan = 3)
+download_button.grid(row = 2, column = 0)
+pause_button.grid(row = 2, column = 1)
+cancel_button.grid(row = 2, column = 2)
 
 # SEARCH VIDEO DETAILS WIDGETS
 thumbnail_box = Label(details_frame)
@@ -173,7 +216,7 @@ channel_label.grid(row = 2, column = 1)
 views_label.grid(row = 3, column = 1)
 date_label.grid(row = 4, column = 1)
 
-# DOWNLOAD OPTIONS WIDGETS
+# STREAM OPTIONS WIDGETS
 filename_label = Label(options_frame, text = "Enter preferred file name:", width = 50, justify = "left")
 filename_entrybox = Entry(options_frame, width = 50)
 options_label = Label(options_frame, text = "Options:")
