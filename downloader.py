@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter import messagebox
 from tkinter.ttk import *
-from pytube import YouTube, request
+from pytube import YouTube, request, exceptions
 from time import *
 import threading
 import urllib.request
@@ -14,41 +14,71 @@ tag_list: list[int] = []
 is_paused: bool = False
 is_cancelled: bool = False
 
-def search_video(videoURL):
-    global yt
+def start_search():
+    threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
+
+def search_stream(videoURL):
+    global yt 
+    global photoimage_holder
+    global tag_list
     try:
-        yt = YouTube(videoURL) #, on_progress_callback = on_progress, on_complete_callback = on_complete)
-        video_length: StringVar
-        video_views: StringVar
+        yt = YouTube(videoURL) 
+        search_button["state"] = DISABLED 
 
         if download_progress_bar["value"] != 0:
             download_progress_bar["value"] = 0
-        search_button["state"] = DISABLED  
 
-        threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
-        threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
+        # threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
+        # threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
+                
+        with urllib.request.urlopen(yt.thumbnail_url) as image_url:
+            thumbnail_data = image_url.read()
+            thumbnail_bytes = io.BytesIO(thumbnail_data)
+            with Image.open(thumbnail_bytes) as thumbnail_image:
+                effective_image = thumbnail_image.resize((240, 180))
+                thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
+                thumbnail_box["image"] = thumbnail_photoimage
+        # keep a reference to PhotoImage object so that it appears properly
+        photoimage_holder = thumbnail_photoimage
         
         if yt.length < 3600:   
-            video_length = "Length: " + strftime("%M:%S", gmtime(yt.length)) # gmtime converts the int yt.length into a tuple to be used for strftime
+            time_label["text"] = "Length: " + strftime("%M:%S", gmtime(float(yt.length))) # gmtime converts the int yt.length into a tuple to be used for strftime
         else:        
-            video_length = "Length: " + strftime("%H:%M:%S", gmtime(yt.length))    
+            time_label["text"] = "Length: " + strftime("%H:%M:%S", gmtime(float(yt.length)))
+
         if yt.views < 1000:
-            video_views = f"{yt.views} views"
+            views_label["text"] = f"{yt.views} views"
         elif yt.views < 1000*10:
-            video_views = f"{yt.views/1000: .1f}K views"
+            views_label["text"] = f"{yt.views/1000: .1f}K views"
         elif yt.views < 1000*1000:
-            video_views = f"{int(yt.views/1000)}K views"
+            views_label["text"] = f"{int(yt.views/1000)}K views"
         elif yt.views < 1000*1000*10:
-            video_views = f"{yt.views/1000/1000: .1f}M views"
+            views_label["text"] = f"{yt.views/1000/1000: .1f}M views"
         else:
-            video_views = f"{int(yt.views/1000/1000)} M views"
+            views_label["text"] = f"{int(yt.views/1000/1000)} M views"
         title_label["text"] = yt.title
-        time_label["text"] = video_length
         channel_label["text"] = yt.author
-        views_label["text"] = video_views
         date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
+
+        item: str
+        filename_entrybox.delete(0, END)
+        filename_entrybox.insert(0, yt.title)
+        tag_list.clear()
+        options_listbox.delete(0, END)
+        for stream in yt.streams.filter():
+            # print(stream) # for debugging; to check if tag_list and listbox match
+            if stream.type == "video":
+                item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+                if stream.is_adaptive:
+                    item += " (no audio)"
+            elif stream.type == "audio":
+                item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+            options_listbox.insert(END, item)
+            tag_list.append(stream.itag)
+
         details_frame.pack()
         download_frame.pack()
+        options_frame.pack()
         search_button["state"] = NORMAL
     except Exception as e:
         if details_frame.winfo_ismapped():
@@ -58,39 +88,39 @@ def search_video(videoURL):
         if options_frame.winfo_ismapped():
             options_frame.pack_forget()
         search_button["state"] = NORMAL
-        messagebox.showerror(title = "ERROR", message = "Error: Invalid URL")
-        print(e)
+        messagebox.showerror(title = "ERROR", message = "Error: " + str(e))
+        # print(e)
 
-def display_image(thumbnail_url):
-    global photoimage_holder
-    with urllib.request.urlopen(thumbnail_url) as image_url:
-        thumbnail_data = image_url.read()
-        thumbnail_bytes = io.BytesIO(thumbnail_data)
-        with Image.open(thumbnail_bytes) as thumbnail_image:
-            effective_image = thumbnail_image.resize((240, 180))
-            thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-            thumbnail_box["image"] = thumbnail_photoimage
-    # keep a reference to PhotoImage object so that it appears properly
-    photoimage_holder = thumbnail_photoimage
+# def display_image(thumbnail_url):
+#     global photoimage_holder
+#     with urllib.request.urlopen(thumbnail_url) as image_url:
+#         thumbnail_data = image_url.read()
+#         thumbnail_bytes = io.BytesIO(thumbnail_data)
+#         with Image.open(thumbnail_bytes) as thumbnail_image:
+#             effective_image = thumbnail_image.resize((240, 180))
+#             thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
+#             thumbnail_box["image"] = thumbnail_photoimage
+#     # keep a reference to PhotoImage object so that it appears properly
+#     photoimage_holder = thumbnail_photoimage
 
-def display_streams(yt_object):
-    global tag_list
-    item: StringVar
-    filename_entrybox.delete(0, END)
-    filename_entrybox.insert(0, yt_object.title)
-    tag_list.clear()
-    options_listbox.delete(0, END)
-    for stream in yt_object.streams.filter():
-        print(stream) # for debugging; to check if tag_list and listbox match
-        if stream.type == "video":
-            item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-            if stream.is_adaptive:
-                item += " (no audio)"
-        elif stream.type == "audio":
-            item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-        options_listbox.insert(END, item)
-        tag_list.append(stream.itag)
-    options_frame.pack()
+# def display_streams(yt_object):
+#     global tag_list
+#     item: str
+#     filename_entrybox.delete(0, END)
+#     filename_entrybox.insert(0, yt_object.title)
+#     tag_list.clear()
+#     options_listbox.delete(0, END)
+#     for stream in yt_object.streams.filter():
+#         print(stream) # for debugging; to check if tag_list and listbox match
+#         if stream.type == "video":
+#             item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+#             if stream.is_adaptive:
+#                 item += " (no audio)"
+#         elif stream.type == "audio":
+#             item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+#         options_listbox.insert(END, item)
+#         tag_list.append(stream.itag)
+#     options_frame.pack()
 
 def advanced_options():
     print("You pressed the advanced options button.")
@@ -110,10 +140,11 @@ def download_stream():
     with open(filename, "wb") as download_file:
         is_paused = False
         is_cancelled = False
-        stream = request.stream(stream_url) # turn the stream into an iterable where pytube's default chunk size is 9MB
+        stream = request.stream(stream_url) # turn the stream into an iterable; pytube's default chunk size is 9MB
         bytes_downloaded: int = 0
         while True:
             if is_cancelled:
+                
                 break
             if is_paused:
                 continue
@@ -182,7 +213,7 @@ search_frame.pack()
 # SEARCH WIDGETS
 url_label = Label(search_frame, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
 url_entrybox = Entry(search_frame, width = 50)
-search_button = Button(search_frame, text = "Search", command = lambda: search_video(url_entrybox.get()))
+search_button = Button(search_frame, text = "Search", command = start_search)
 url_label.grid(row = 0, column = 0)
 url_entrybox.grid(row = 1, column = 0)
 search_button.grid(row = 1, column = 1)

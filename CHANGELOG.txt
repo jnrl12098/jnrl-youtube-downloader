@@ -1,3 +1,12 @@
+20230418
+YT-DL-GUI Version 0.09
+* the search button now starts a thread of search_stream, just like how the download button starts a thread of download_stream
+* removed the use of StringVar for some widgets; went with directly changing the ["text"] of widgets instead to use less variables
+* for now, placed all features of functions related to search_stream such as display_image and display_stream into the search_stream functions
+	* this is to avoid errors related to one thread loading before the other but lacking required information because the other function hasn't finished yet
+* wrapped yt.length in float() for gmtime() to help avoid the error "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'"
+	* root of problem is sometimes yt.length is not retrieved at all
+
 20230417
 YT-DL-GUI Version 0.08
 * implemented pause/resume (toggle) and cancel download features
