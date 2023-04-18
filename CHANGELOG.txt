@@ -6,6 +6,7 @@ YT-DL-GUI Version 0.09
 	* this is to avoid errors related to one thread loading before the other but lacking required information because the other function hasn't finished yet
 * wrapped yt.length in float() for gmtime() to help avoid the error "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'"
 	* root of problem is sometimes yt.length is not retrieved at all
+* handled specific exceptions encountered when retrieving details such as youtube title, views, length
 
 20230417
 YT-DL-GUI Version 0.08

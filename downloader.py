@@ -17,35 +17,77 @@ is_cancelled: bool = False
 def start_search():
     threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
 
-def search_stream(videoURL):
+def search_stream(video_url):
     global yt 
     global photoimage_holder
     global tag_list
+    search_button["state"] = DISABLED 
+    # try:
     try:
-        yt = YouTube(videoURL) 
-        search_button["state"] = DISABLED 
+        yt = YouTube(video_url) 
+    except exceptions.RegexMatchError:
+        messagebox.showerror(title = "ERROR", message = "Invalid URL")
+        search_button["state"] = NORMAL
+        return
+    
+    if download_progress_bar["value"] != 0:
+        download_progress_bar["value"] = 0
 
-        if download_progress_bar["value"] != 0:
-            download_progress_bar["value"] = 0
+    # threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
+    # threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
+            
+    with urllib.request.urlopen(yt.thumbnail_url) as image_url:
+        thumbnail_data = image_url.read()
+        thumbnail_bytes = io.BytesIO(thumbnail_data)
+        with Image.open(thumbnail_bytes) as thumbnail_image:
+            effective_image = thumbnail_image.resize((240, 180))
+            thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
+            thumbnail_box["image"] = thumbnail_photoimage
+    # keep a reference to PhotoImage object so that it appears properly
+    photoimage_holder = thumbnail_photoimage
 
-        # threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
-        # threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
-                
-        with urllib.request.urlopen(yt.thumbnail_url) as image_url:
-            thumbnail_data = image_url.read()
-            thumbnail_bytes = io.BytesIO(thumbnail_data)
-            with Image.open(thumbnail_bytes) as thumbnail_image:
-                effective_image = thumbnail_image.resize((240, 180))
-                thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-                thumbnail_box["image"] = thumbnail_photoimage
-        # keep a reference to PhotoImage object so that it appears properly
-        photoimage_holder = thumbnail_photoimage
-        
+    video_title: str
+    retry_count = 0
+    while True:
+        try:
+            video_title = yt.title
+            print("Successfully retrieved title of video")
+            break
+        except Exception as e:
+            yt = YouTube(video_url)
+            retry_count += 1
+            print(e)
+            print(f"Retrying... ({retry_count} time/s)")
+            continue
+    # TODO slice title into short lines
+    # char_per_line: int = 40
+    # if len(video_title) > char_per_line:
+    #     reversed_first_line = video_title[0:char_per_line] # for some reason, slicing via indexing [0:char_per_line:-1] doesn't work
+    #     print(reversed_first_line)
+    #     whitespace_index = char_per_line
+    #     for i in reversed_first_line:
+    #         whitespace_index -= 1
+    #         if i.isspace():
+    #             break
+    #     print(whitespace_index)
+    #     character_limit = whitespace_index + char_per_line - 3 # display 2 lines maximum + "..." at the end
+    #     if len(video_title) > character_limit:
+    #         title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:character_limit] + "..."
+    #     else:
+    #         title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:]
+    # else:
+    #     title_label["text"] = video_title
+    title_label["text"] = video_title
+    
+    try:
         if yt.length < 3600:   
             time_label["text"] = "Length: " + strftime("%M:%S", gmtime(float(yt.length))) # gmtime converts the int yt.length into a tuple to be used for strftime
         else:        
             time_label["text"] = "Length: " + strftime("%H:%M:%S", gmtime(float(yt.length)))
+    except TypeError:
+        time_label["text"] = "Length: Unavailable"
 
+    try:
         if yt.views < 1000:
             views_label["text"] = f"{yt.views} views"
         elif yt.views < 1000*10:
@@ -56,39 +98,41 @@ def search_stream(videoURL):
             views_label["text"] = f"{yt.views/1000/1000: .1f}M views"
         else:
             views_label["text"] = f"{int(yt.views/1000/1000)} M views"
-        title_label["text"] = yt.title
-        channel_label["text"] = yt.author
-        date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
+    except TypeError:
+        views_label["text"] = "Views: Unavailable"
 
-        item: str
-        filename_entrybox.delete(0, END)
-        filename_entrybox.insert(0, yt.title)
-        tag_list.clear()
-        options_listbox.delete(0, END)
-        for stream in yt.streams.filter():
-            # print(stream) # for debugging; to check if tag_list and listbox match
-            if stream.type == "video":
-                item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-                if stream.is_adaptive:
-                    item += " (no audio)"
-            elif stream.type == "audio":
-                item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-            options_listbox.insert(END, item)
-            tag_list.append(stream.itag)
+    channel_label["text"] = yt.author
+    date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
 
-        details_frame.pack()
-        download_frame.pack()
-        options_frame.pack()
-        search_button["state"] = NORMAL
-    except Exception as e:
-        if details_frame.winfo_ismapped():
-            details_frame.pack_forget()
-        if download_frame.winfo_ismapped():
-            download_frame.pack_forget()
-        if options_frame.winfo_ismapped():
-            options_frame.pack_forget()
-        search_button["state"] = NORMAL
-        messagebox.showerror(title = "ERROR", message = "Error: " + str(e))
+    item: str
+    filename_entrybox.delete(0, END)
+    filename_entrybox.insert(0, yt.title)
+    tag_list.clear()
+    options_listbox.delete(0, END)
+    for stream in yt.streams.filter():
+        # print(stream) # for debugging; to check if tag_list and listbox match
+        if stream.type == "video":
+            item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+            if stream.is_adaptive:
+                item += " (no audio)"
+        elif stream.type == "audio":
+            item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
+        options_listbox.insert(END, item) # sometimes results in error: "RuntimeError: main thread is not in main loop"
+        tag_list.append(stream.itag)
+
+    details_frame.pack()
+    download_frame.pack()
+    options_frame.pack()
+    search_button["state"] = NORMAL
+    # except Exception as e:
+    #     if details_frame.winfo_ismapped():
+    #         details_frame.pack_forget()
+    #     if download_frame.winfo_ismapped():
+    #         download_frame.pack_forget()
+    #     if options_frame.winfo_ismapped():
+    #         options_frame.pack_forget()
+    #     search_button["state"] = NORMAL
+    #     messagebox.showerror(title = "ERROR", message = "Error: " + str(e))
         # print(e)
 
 # def display_image(thumbnail_url):
