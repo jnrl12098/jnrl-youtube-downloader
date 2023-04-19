@@ -5,6 +5,7 @@ from pytube import YouTube, request, exceptions
 from time import *
 import threading
 import urllib.request
+import urllib.error
 import io
 import os
 from PIL import Image, ImageTk
@@ -14,11 +15,13 @@ photoimage_holder: PhotoImage = None
 tag_list: list[int] = []
 is_paused: bool = False
 is_cancelled: bool = False
+search_is_loading: bool = False
 
 def search_stream(video_url):
     global yt 
     global photoimage_holder
     global tag_list
+    global search_is_loading
     search_button["state"] = DISABLED 
     
     try:
@@ -31,15 +34,26 @@ def search_stream(video_url):
     if download_progress_bar["value"] != 0:
         download_progress_bar["value"] = 0
             
-    with urllib.request.urlopen(yt.thumbnail_url) as image_url:
-        thumbnail_data = image_url.read()
-        thumbnail_bytes = io.BytesIO(thumbnail_data)
-        with Image.open(thumbnail_bytes) as thumbnail_image:
-            effective_image = thumbnail_image.resize((240, 180))
-            thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-            thumbnail_box["image"] = thumbnail_photoimage
-    # keep a reference to PhotoImage object so that it appears properly
-    photoimage_holder = thumbnail_photoimage
+    search_is_loading = True
+    loading_label.grid()
+    threading.Thread(target = loading_search, args = (), daemon = True).start()
+
+    try:
+        with urllib.request.urlopen(yt.thumbnail_url) as image_url:
+            thumbnail_data = image_url.read()
+            thumbnail_bytes = io.BytesIO(thumbnail_data)
+            with Image.open(thumbnail_bytes) as thumbnail_image:
+                effective_image = thumbnail_image.resize((240, 180))
+                thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
+                thumbnail_box["image"] = thumbnail_photoimage
+        # keep a reference to PhotoImage object so that it appears properly
+        photoimage_holder = thumbnail_photoimage
+    except urllib.error.HTTPError:
+        messagebox.showerror(title = "ERROR", message = "Invalid URL (HTTP Error 404: Not Found)")
+        search_button["state"] = NORMAL
+        search_is_loading = False
+        loading_label.grid_forget()
+        return
 
     video_title: str
     retry_count = 0
@@ -107,10 +121,25 @@ def search_stream(video_url):
         options_listbox.insert(END, item) # sometimes results in error: "RuntimeError: main thread is not in main loop"
         tag_list.append(stream.itag)
 
+    search_is_loading = False
+    loading_label.grid_forget()
     details_frame.pack()
     download_frame.pack()
     options_frame.pack()
     search_button["state"] = NORMAL
+
+def loading_search():
+    global search_is_loading
+    while search_is_loading:
+        loading_label["text"] = "Loading"
+        sleep(1)
+        loading_label["text"] = "Loading."
+        sleep(1)
+        loading_label["text"] = "Loading.."
+        sleep(1)
+        loading_label["text"] = "Loading..."
+        sleep(1)
+    return
 
 def start_search():
     threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
@@ -213,9 +242,12 @@ search_frame.pack()
 url_label = Label(search_frame, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
 url_entrybox = Entry(search_frame, width = 50)
 search_button = Button(search_frame, text = "Search", command = start_search)
+loading_label = Label(search_frame)
 url_label.grid(row = 0, column = 0)
 url_entrybox.grid(row = 1, column = 0)
 search_button.grid(row = 1, column = 1)
+loading_label.grid(row = 2, columnspan = 2)
+loading_label.grid_forget()
 # show threads for debugging
 threads_button = Button(search_frame, text = "Threads", command = show_threads)
 threads_button.grid(row = 0, column = 1)

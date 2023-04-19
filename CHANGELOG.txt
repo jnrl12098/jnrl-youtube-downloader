@@ -1,4 +1,7 @@
 20230419
+YT-DL-GUI Version 0.11
+* implemented label that shows "Loading..." while details and options are still loading
+* handled exception related to HTTP Error 404 
 YT-DL-GUI Version 0.10
 * implemented string slicing on the video title if it's too long
 	* string[0:END:-1] doesn't work; string[0:END][::-1] does (to get the index of whitespace within the char_per_line limit)
