@@ -11,29 +11,24 @@ import os
 from PIL import Image, ImageTk
 
 yt: YouTube = None
+video_title: str
 photoimage_holder: PhotoImage = None
 tag_list: list[int] = []
 is_paused: bool = False
 is_cancelled: bool = False
 search_is_loading: bool = False
+download_queue: list = []
 
-def search_stream(video_url):
-    global yt 
-    global photoimage_holder
-    global tag_list
-    global search_is_loading
-    search_button["state"] = DISABLED 
-    
+def search_stream():
+    global yt, video_title, photoimage_holder, tag_list, search_is_loading
+    search_button["state"] = DISABLED     
+    youtube_url: str = url_entrybox.get()
     try:
-        yt = YouTube(video_url) 
+        yt = YouTube(youtube_url) 
     except exceptions.RegexMatchError:
         messagebox.showerror(title = "ERROR", message = "Invalid URL")
         search_button["state"] = NORMAL
         return
-    
-    if download_progress_bar["value"] != 0:
-        download_progress_bar["value"] = 0
-            
     search_is_loading = True
     loading_label.grid()
     threading.Thread(target = loading_search, args = (), daemon = True).start()
@@ -55,8 +50,7 @@ def search_stream(video_url):
         search_is_loading = False
         loading_label.grid_forget()
         return
-    video_title: str
-    # for some reason, pytube sometimes cannot properly load the details of the video, requiring us to reload the YouTube object yt until the details are retrieved properly
+    # for some reason, pytube sometimes cannot properly retrieve the details of the video, requiring us to reload the YouTube object yt until the details are retrieved properly
     retry_count = 0
     while True:
         try:
@@ -64,7 +58,7 @@ def search_stream(video_url):
             print("Successfully retrieved title of video")
             break
         except Exception as e:
-            yt = YouTube(video_url)
+            yt = YouTube(youtube_url)
             retry_count += 1
             print(e)
             print(f"Retrying... ({retry_count} time/s)")
@@ -124,10 +118,11 @@ def search_stream(video_url):
 
     search_is_loading = False
     loading_label.grid_forget()
-    details_frame.pack()
-    download_frame.pack()
-    options_frame.pack()
     search_button["state"] = NORMAL
+    if not details_frame.winfo_ismapped():
+        details_frame.pack()
+    if not options_frame.winfo_ismapped():
+        options_frame.pack()
 
 def loading_search():
     global search_is_loading
@@ -143,26 +138,36 @@ def loading_search():
     return
 
 def start_search():
-    threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
+    threading.Thread(target = search_stream, args = ()).start()
 
 def advanced_options():
     print("You pressed the advanced options button.")
     # TODO post-processing options with FFMPEG in mind
 
 def download_stream():
-    global yt, is_paused, is_cancelled  
-    stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
-    filename: str = filename_entrybox.get() + "." + stream.subtype
-    if os.path.exists(filename): # TODO when implementing download queue, must also check if filename has already been taken
-        messagebox.showerror(title = "ERROR", message = "File name is already taken.")
-        return
-    download_button["state"] = DISABLED
+    global is_paused, is_cancelled, download_queue  
+    if not download_frame.winfo_ismapped():
+        download_frame.grid(row = 0, column = 1)
+    # stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
+    # filename: str = filename_entrybox.get() + "." + stream.subtype
+    # if os.path.exists(filename): # TODO when implementing download queue, must also check if filename has already been taken
+    #     messagebox.showerror(title = "ERROR", message = "File name is already taken.")
+    #     return
+    # download_button["state"] = DISABLED
     pause_button["state"] = NORMAL
     cancel_button["state"] = NORMAL
-    filesize: int = stream.filesize
-    stream_url: str = stream.url
-    converted_filesize: str = convert_bytes(filesize)
-    try:
+    while len(download_queue) > 0:
+        queue_listbox.delete(0)
+        details: str = download_queue[0][0]
+        filename: str = download_queue[0][1]
+        filesize: int = download_queue[0][2]
+        thumbnail: PhotoImage = download_queue[0][3]
+        title: str = download_queue[0][4]
+        stream_url: str = download_queue[0][5]
+        current_downloading["text"] = "Now downloading: " + filename
+        current_thumbnail["image"] = thumbnail
+        current_details["text"] = title + "\n" + details
+        converted_filesize: str = convert_bytes(filesize)
         with open(filename, "wb") as download_file:
             is_paused = False
             is_cancelled = False
@@ -181,25 +186,57 @@ def download_stream():
                     progress_label["text"] = convert_bytes(bytes_downloaded) + " / " + converted_filesize
                     main_window.update_idletasks()
                 else:
-                    messagebox.showinfo(title = "Information", message = "Download complete.")
+                    # messagebox.showinfo(title = "Information", message = "Download complete.")
                     break
         if is_cancelled:
+            # messagebox.showinfo(title = "Information", message = "Download was cancelled.")
             os.remove(filename)
-    except OSError:
-        messagebox.showerror(title = "ERROR", message = "File name can't contain any of the following characters:\n\ / : * ? \" < > |")
-    download_button["state"] = NORMAL
+        download_queue.pop(0)
+    # download_button["state"] = NORMAL
     pause_button["state"] = DISABLED
     pause_button["text"] = "Pause"
     cancel_button["state"] = DISABLED
     download_progress_bar["value"] = 0
     progress_label["text"] = ""
+    messagebox.showinfo(title = "Information", message = "Download queue is empty.")
+    # download_frame.pack_forget()
 
-def start_download():
-    if len(options_listbox.curselection()) == 1:
+def add_to_queue():
+    # if len(options_listbox.curselection()) == 1:
+    #     threading.Thread(target = download_stream, daemon = True).start()
+    # else:
+    #     messagebox.showinfo(title = "Information", message = "Choose a stream to download.")
+    global yt, video_title, photoimage_holder
+    if len(options_listbox.curselection()) == 0:
+        messagebox.showerror(title = "ERROR", message = "Choose an option to download.")
+        return
+    stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
+    # print(tag_list[options_listbox.curselection()[0]])
+    stream_filename: str = filename_entrybox.get() + "." + stream.subtype
+    for char in stream_filename:
+        if char in "\/:*?\"<>|":
+            messagebox.showerror(title = "ERROR", message = "File name can't contain any of the following characters:\n\ / : * ? \" < > |")
+            return
+    if os.path.exists(stream_filename): # TODO when implementing download queue, must also check if filename has already been taken
+        messagebox.showerror(title = "ERROR", message = "File name is already taken.")
+        return
+    stream_details: str = options_listbox.get(options_listbox.curselection())
+    stream_filesize: int = stream.filesize
+    stream_photoimage: PhotoImage = photoimage_holder
+    stream_title: str = video_title
+    stream_url: str = stream.url
+
+    download_queue.append([stream_details,
+                           stream_filename, 
+                           stream_filesize,
+                           stream_photoimage, 
+                           stream_title,
+                           stream_url])
+    queue_details: str = stream_filename + " (" + convert_bytes(stream_filesize) + ")" + "\n" + stream_title + "\n" + stream_details
+    queue_listbox.insert(END, queue_details)
+    if len(download_queue) == 1:
         threading.Thread(target = download_stream, daemon = True).start()
-    else:
-        messagebox.showinfo(title = "Information", message = "Choose a stream to download.")
-    
+
 def toggle_download():
     global is_paused
     is_paused = not is_paused
@@ -211,8 +248,6 @@ def toggle_download():
 def cancel_download():
     global is_cancelled
     is_cancelled = True
-    download_progress_bar["value"] = 0
-    messagebox.showinfo(title = "Information", message = "Download was cancelled.")
 
 # UTILITY FUNCTIONS
 # convert bytes to KB/MB/GB for better readability
@@ -232,12 +267,18 @@ def show_threads():
 
 main_window = Tk()
 
-search_frame = Frame(main_window)
+initial_frame = Frame(main_window)
 download_frame = Frame(main_window)
-details_frame = Frame(main_window)
-options_frame = Frame(main_window)
 
+search_frame = Frame(initial_frame)
+details_frame = Frame(initial_frame)
+options_frame = Frame(initial_frame)
+
+initial_frame.grid(row = 0, column = 0)
 search_frame.pack()
+
+download_frame.grid(row = 0, column = 1)
+download_frame.grid_forget()
 
 # SEARCH WIDGETS
 url_label = Label(search_frame, text = "Enter URL of YouTube Video:", width = 50, justify = "left")
@@ -252,18 +293,6 @@ loading_label.grid_forget()
 # show threads for debugging
 threads_button = Button(search_frame, text = "Threads", command = show_threads)
 threads_button.grid(row = 0, column = 1)
-
-# DOWNLOAD STREAM WIDGETS
-download_progress_bar = Progressbar(download_frame, orient = HORIZONTAL, length = 200)
-progress_label = Label(download_frame)
-download_button = Button(download_frame, text = "Download", command = start_download)
-pause_button = Button(download_frame, text = "Pause", state = DISABLED, command = toggle_download)
-cancel_button = Button(download_frame, text = "Cancel", state = DISABLED, command = cancel_download)
-download_progress_bar.grid(row = 0, column = 0, columnspan = 3)
-progress_label.grid(row =1, column = 0, columnspan = 3)
-download_button.grid(row = 2, column = 0)
-pause_button.grid(row = 2, column = 1)
-cancel_button.grid(row = 2, column = 2)
 
 # SEARCH VIDEO DETAILS WIDGETS
 thumbnail_box = Label(details_frame)
@@ -282,13 +311,36 @@ date_label.grid(row = 4, column = 1)
 # STREAM OPTIONS WIDGETS
 filename_label = Label(options_frame, text = "Enter preferred file name:", width = 50, justify = "left")
 filename_entrybox = Entry(options_frame, width = 50)
+download_button = Button(options_frame, text = "Download", command = add_to_queue)
 options_label = Label(options_frame, text = "Options:")
 advanced_options_button = Button(options_frame, text = "Advanced Options", command = advanced_options)
 options_listbox = Listbox(options_frame, width = 50)
 filename_label.grid(row = 0, column = 0)
 filename_entrybox.grid(row = 1, column = 0)
+download_button.grid(row = 1, column = 1)
 options_label.grid(row = 2, column = 0)
 advanced_options_button.grid(row = 2, column = 1)
 options_listbox.grid(row = 3, column = 0, columnspan = 2)
+
+# DOWNLOAD STREAM WIDGETS
+current_downloading = Label(download_frame, text = "Now downloading: N/A")
+current_thumbnail = Label(download_frame)
+current_details = Label(download_frame)
+download_progress_bar = Progressbar(download_frame, orient = HORIZONTAL, length = 200)
+progress_label = Label(download_frame)
+pause_button = Button(download_frame, text = "Pause", state = DISABLED, command = toggle_download)
+cancel_button = Button(download_frame, text = "Cancel", state = DISABLED, command = cancel_download)
+queue_label = Label(download_frame, text = "UP NEXT:", width = 50, justify = "left")
+queue_listbox = Listbox(download_frame, width = 50)
+
+current_downloading.grid(row = 0, column = 0, columnspan = 2)
+current_thumbnail.grid(row = 1, column = 0, columnspan = 2)
+current_details.grid(row = 2, column = 0, columnspan = 2)
+download_progress_bar.grid(row = 3, column = 0, columnspan = 2)
+progress_label.grid(row = 4, column = 0, columnspan = 2)
+pause_button.grid(row = 5, column = 0)
+cancel_button.grid(row = 5, column = 1)
+queue_label.grid(row = 6, column = 0, columnspan = 2)
+queue_listbox.grid(row = 7, column = 0, columnspan = 2)
 
 main_window.mainloop()

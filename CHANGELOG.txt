@@ -1,4 +1,9 @@
 20230419
+YT-DL-GUI Version 0.12
+* implemented download queue, meaning the user can simply add streams to the queue and the streams download in the background
+	* opted not to make an abstract queue_stream class that contains all the details needed
+	* will search for a way to optimize the process in the future
+* implemented a display for the download queue; separated widgets related to search and widgets related to download
 YT-DL-GUI Version 0.11
 * implemented label that shows "Loading..." while details and options are still loading
 * handled exception related to HTTP Error 404 
