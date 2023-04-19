@@ -59,25 +59,17 @@ def search_stream(video_url):
             print(e)
             print(f"Retrying... ({retry_count} time/s)")
             continue
-    # TODO slice title into short lines
-    # char_per_line: int = 40
-    # if len(video_title) > char_per_line:
-    #     reversed_first_line = video_title[0:char_per_line] # for some reason, slicing via indexing [0:char_per_line:-1] doesn't work
-    #     print(reversed_first_line)
-    #     whitespace_index = char_per_line
-    #     for i in reversed_first_line:
-    #         whitespace_index -= 1
-    #         if i.isspace():
-    #             break
-    #     print(whitespace_index)
-    #     character_limit = whitespace_index + char_per_line - 3 # display 2 lines maximum + "..." at the end
-    #     if len(video_title) > character_limit:
-    #         title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:character_limit] + "..."
-    #     else:
-    #         title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:]
-    # else:
-    #     title_label["text"] = video_title
-    title_label["text"] = video_title
+    char_per_line: int = 40
+    if len(video_title) > char_per_line:
+        reversed_first_line = video_title[0:char_per_line][::-1] # for some reason, slicing via indexing [0:char_per_line:-1] doesn't work
+        whitespace_index = char_per_line - reversed_first_line.find(" ")
+        character_limit = whitespace_index + char_per_line - 3 # display 2 lines maximum + "..." at the end
+        if len(video_title) > character_limit:
+            title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:character_limit] + "..."
+        else:
+            title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:]
+    else:
+        title_label["text"] = video_title
     
     try:
         if yt.length < 3600:   
@@ -103,7 +95,7 @@ def search_stream(video_url):
 
     channel_label["text"] = yt.author
     date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
-
+    # DISPLAY STREAM OPTIONS
     item: str
     filename_entrybox.delete(0, END)
     filename_entrybox.insert(0, yt.title)
@@ -124,16 +116,6 @@ def search_stream(video_url):
     download_frame.pack()
     options_frame.pack()
     search_button["state"] = NORMAL
-    # except Exception as e:
-    #     if details_frame.winfo_ismapped():
-    #         details_frame.pack_forget()
-    #     if download_frame.winfo_ismapped():
-    #         download_frame.pack_forget()
-    #     if options_frame.winfo_ismapped():
-    #         options_frame.pack_forget()
-    #     search_button["state"] = NORMAL
-    #     messagebox.showerror(title = "ERROR", message = "Error: " + str(e))
-        # print(e)
 
 # def display_image(thumbnail_url):
 #     global photoimage_holder

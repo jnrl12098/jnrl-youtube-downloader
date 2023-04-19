@@ -1,3 +1,8 @@
+20230419
+YT-DL-GUI Version 0.10
+* implemented string slicing on the video title if it's too long
+	* string[0:END:-1] doesn't work; string[0:END][::-1] does (to get the index of whitespace within the char_per_line limit)
+
 20230418
 YT-DL-GUI Version 0.09
 * the search button now starts a thread of search_stream, just like how the download button starts a thread of download_stream
