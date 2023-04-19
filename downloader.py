@@ -14,15 +14,12 @@ tag_list: list[int] = []
 is_paused: bool = False
 is_cancelled: bool = False
 
-def start_search():
-    threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
-
 def search_stream(video_url):
     global yt 
     global photoimage_holder
     global tag_list
     search_button["state"] = DISABLED 
-    # try:
+    
     try:
         yt = YouTube(video_url) 
     except exceptions.RegexMatchError:
@@ -32,9 +29,6 @@ def search_stream(video_url):
     
     if download_progress_bar["value"] != 0:
         download_progress_bar["value"] = 0
-
-    # threading.Thread(target = display_streams, args = (yt,)).start() # (x, ) to emphasize that string x is one argument and not just a list of individual characters
-    # threading.Thread(target = display_image, args = (yt.thumbnail_url,)).start() 
             
     with urllib.request.urlopen(yt.thumbnail_url) as image_url:
         thumbnail_data = image_url.read()
@@ -117,50 +111,21 @@ def search_stream(video_url):
     options_frame.pack()
     search_button["state"] = NORMAL
 
-# def display_image(thumbnail_url):
-#     global photoimage_holder
-#     with urllib.request.urlopen(thumbnail_url) as image_url:
-#         thumbnail_data = image_url.read()
-#         thumbnail_bytes = io.BytesIO(thumbnail_data)
-#         with Image.open(thumbnail_bytes) as thumbnail_image:
-#             effective_image = thumbnail_image.resize((240, 180))
-#             thumbnail_photoimage = ImageTk.PhotoImage(effective_image)
-#             thumbnail_box["image"] = thumbnail_photoimage
-#     # keep a reference to PhotoImage object so that it appears properly
-#     photoimage_holder = thumbnail_photoimage
-
-# def display_streams(yt_object):
-#     global tag_list
-#     item: str
-#     filename_entrybox.delete(0, END)
-#     filename_entrybox.insert(0, yt_object.title)
-#     tag_list.clear()
-#     options_listbox.delete(0, END)
-#     for stream in yt_object.streams.filter():
-#         print(stream) # for debugging; to check if tag_list and listbox match
-#         if stream.type == "video":
-#             item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-#             if stream.is_adaptive:
-#                 item += " (no audio)"
-#         elif stream.type == "audio":
-#             item = stream.type + " - " + stream.abr + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
-#         options_listbox.insert(END, item)
-#         tag_list.append(stream.itag)
-#     options_frame.pack()
+def start_search():
+    threading.Thread(target = search_stream, args = (url_entrybox.get(),)).start()
 
 def advanced_options():
     print("You pressed the advanced options button.")
+    # TODO post-processing options with FFMPEG in mind
 
 def download_stream():
     global yt, is_paused, is_cancelled  
     download_button["state"] = DISABLED
     pause_button["state"] = NORMAL
     cancel_button["state"] = NORMAL
-    # print(tag_list[options_listbox.curselection()[0]]) # for debugging; to check if tag_list and listbox match
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
     filesize: int = stream.filesize
     stream_url: str = stream.url
-    # threading.Thread(target = stream.download, daemon = True).start()
     filename: str = filename_entrybox.get() + "." + stream.subtype
     converted_filesize: str = convert_bytes(filesize)
     with open(filename, "wb") as download_file:
