@@ -6,6 +6,7 @@ from time import *
 import threading
 import urllib.request
 import io
+import os
 from PIL import Image, ImageTk
 
 yt: YouTube = None
@@ -124,31 +125,37 @@ def download_stream():
     pause_button["state"] = NORMAL
     cancel_button["state"] = NORMAL
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
+    filename: str = filename_entrybox.get() + "." + stream.subtype
+    if os.path.exists(filename): # TODO when implementing download queue, must also check if filename has already been taken
+        messagebox.showerror(title = "ERROR", message = "File name is already taken.")
+        return
     filesize: int = stream.filesize
     stream_url: str = stream.url
-    filename: str = filename_entrybox.get() + "." + stream.subtype
     converted_filesize: str = convert_bytes(filesize)
-    with open(filename, "wb") as download_file:
-        is_paused = False
-        is_cancelled = False
-        stream = request.stream(stream_url) # turn the stream into an iterable; pytube's default chunk size is 9MB
-        bytes_downloaded: int = 0
-        while True:
-            if is_cancelled:
-                
-                break
-            if is_paused:
-                continue
-            chunk = next(stream, None)  
-            if chunk is not None:
-                download_file.write(chunk)
-                bytes_downloaded += len(chunk)
-                download_progress_bar["value"] = (bytes_downloaded / filesize) * 100
-                progress_label["text"] = convert_bytes(bytes_downloaded) + " / " + converted_filesize
-                main_window.update_idletasks()
-            else:
-                messagebox.showinfo("Information", "Download complete.")
-                break
+    try:
+        with open(filename, "wb") as download_file:
+            is_paused = False
+            is_cancelled = False
+            stream = request.stream(stream_url) # turn the stream into an iterable; pytube's default chunk size is 9MB
+            bytes_downloaded: int = 0
+            while True:
+                if is_cancelled:
+                    os.remove(filename)
+                    break
+                if is_paused:
+                    continue
+                chunk = next(stream, None)  
+                if chunk is not None:
+                    download_file.write(chunk)
+                    bytes_downloaded += len(chunk)
+                    download_progress_bar["value"] = (bytes_downloaded / filesize) * 100
+                    progress_label["text"] = convert_bytes(bytes_downloaded) + " / " + converted_filesize
+                    main_window.update_idletasks()
+                else:
+                    messagebox.showinfo(title = "Information", message = "Download complete.")
+                    break
+    except OSError:
+        messagebox.showerror(title = "ERROR", message = "File name can't contain any of the following characters:\n\ / : * ? \" < > |")
     download_button["state"] = NORMAL
     pause_button["state"] = DISABLED
     pause_button["text"] = "Pause"

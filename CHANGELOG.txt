@@ -2,6 +2,8 @@
 YT-DL-GUI Version 0.10
 * implemented string slicing on the video title if it's too long
 	* string[0:END:-1] doesn't work; string[0:END][::-1] does (to get the index of whitespace within the char_per_line limit)
+* implemented exception handling for filenames that are invalid or already taken by an existing file
+	* when implementing download queue in the future, must also check if filename was already taken by an item in the queue
 
 20230418
 YT-DL-GUI Version 0.09
