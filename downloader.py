@@ -37,8 +37,9 @@ def search_stream(video_url):
     search_is_loading = True
     loading_label.grid()
     threading.Thread(target = loading_search, args = (), daemon = True).start()
-
+    # VIDEO DETAILS
     try:
+        # load the thumbnail into the thumbnail_box
         with urllib.request.urlopen(yt.thumbnail_url) as image_url:
             thumbnail_data = image_url.read()
             thumbnail_bytes = io.BytesIO(thumbnail_data)
@@ -54,8 +55,8 @@ def search_stream(video_url):
         search_is_loading = False
         loading_label.grid_forget()
         return
-
     video_title: str
+    # for some reason, pytube sometimes cannot properly load the details of the video, requiring us to reload the YouTube object yt until the details are retrieved properly
     retry_count = 0
     while True:
         try:
@@ -68,6 +69,7 @@ def search_stream(video_url):
             print(e)
             print(f"Retrying... ({retry_count} time/s)")
             continue
+    # slice the video title to shorten the width on display
     char_per_line: int = 40
     if len(video_title) > char_per_line:
         reversed_first_line = video_title[0:char_per_line][::-1] # for some reason, slicing via indexing [0:char_per_line:-1] doesn't work
@@ -78,36 +80,35 @@ def search_stream(video_url):
         else:
             title_label["text"] = video_title[0:whitespace_index] + "\n" + video_title[whitespace_index:]
     else:
-        title_label["text"] = video_title
-    
+        title_label["text"] = video_title    
     try:
-        if yt.length < 3600:   
-            time_label["text"] = "Length: " + strftime("%M:%S", gmtime(float(yt.length))) # gmtime converts the int yt.length into a tuple to be used for strftime
+        length: int = yt.length
+        if length < 3600:   
+            time_label["text"] = "Length: " + strftime("%M:%S", gmtime(length)) # gmtime converts the int yt.length into a tuple to be used for strftime
         else:        
-            time_label["text"] = "Length: " + strftime("%H:%M:%S", gmtime(float(yt.length)))
+            time_label["text"] = "Length: " + strftime("%H:%M:%S", gmtime(length)) # as of 2023-Apr-19, no way to display 1-9 instead of 01-09 for the hour
     except TypeError:
         time_label["text"] = "Length: Unavailable"
-
     try:
-        if yt.views < 1000:
-            views_label["text"] = f"{yt.views} views"
-        elif yt.views < 1000*10:
-            views_label["text"] = f"{yt.views/1000: .1f}K views"
-        elif yt.views < 1000*1000:
-            views_label["text"] = f"{int(yt.views/1000)}K views"
-        elif yt.views < 1000*1000*10:
-            views_label["text"] = f"{yt.views/1000/1000: .1f}M views"
+        views: int = yt.views
+        if views < 1000:
+            views_label["text"] = f"{views} views"
+        elif views < 1000*10:
+            views_label["text"] = f"{views/1000: .1f}K views"
+        elif views < 1000*1000:
+            views_label["text"] = f"{int(views/1000)}K views"
+        elif views < 1000*1000*10:
+            views_label["text"] = f"{views/1000/1000: .1f}M views"
         else:
-            views_label["text"] = f"{int(yt.views/1000/1000)} M views"
+            views_label["text"] = f"{int(views/1000/1000)} M views"
     except TypeError:
         views_label["text"] = "Views: Unavailable"
-
     channel_label["text"] = yt.author
     date_label["text"] = "Published on: " + yt.publish_date.strftime("%b %m, %Y")
     # DISPLAY STREAM OPTIONS
     item: str
     filename_entrybox.delete(0, END)
-    filename_entrybox.insert(0, yt.title)
+    filename_entrybox.insert(0, video_title)
     tag_list.clear()
     options_listbox.delete(0, END)
     for stream in yt.streams.filter():
