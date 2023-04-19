@@ -4,6 +4,8 @@ YT-DL-GUI Version 0.12
 	* opted not to make an abstract queue_stream class that contains all the details needed
 	* will search for a way to optimize the process in the future
 * implemented a display for the download queue; separated widgets related to search and widgets related to download
+* loading label is not unmapped anymore to prevent widgets from shuffling vertically
+* fixed bug where toggle button doesn't reset back to pause when download is cancelled
 YT-DL-GUI Version 0.11
 * implemented label that shows "Loading..." while details and options are still loading
 * handled exception related to HTTP Error 404 

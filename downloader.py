@@ -30,7 +30,6 @@ def search_stream():
         search_button["state"] = NORMAL
         return
     search_is_loading = True
-    loading_label.grid()
     threading.Thread(target = loading_search, args = (), daemon = True).start()
     # VIDEO DETAILS
     try:
@@ -48,7 +47,6 @@ def search_stream():
         messagebox.showerror(title = "ERROR", message = "Invalid URL (HTTP Error 404: Not Found)")
         search_button["state"] = NORMAL
         search_is_loading = False
-        loading_label.grid_forget()
         return
     # for some reason, pytube sometimes cannot properly retrieve the details of the video, requiring us to reload the YouTube object yt until the details are retrieved properly
     retry_count = 0
@@ -117,7 +115,6 @@ def search_stream():
         tag_list.append(stream.itag)
 
     search_is_loading = False
-    loading_label.grid_forget()
     search_button["state"] = NORMAL
     if not details_frame.winfo_ismapped():
         details_frame.pack()
@@ -135,6 +132,7 @@ def loading_search():
         sleep(1)
         loading_label["text"] = "Loading..."
         sleep(1)
+    loading_label["text"] = " "
     return
 
 def start_search():
@@ -171,6 +169,7 @@ def download_stream():
         with open(filename, "wb") as download_file:
             is_paused = False
             is_cancelled = False
+            pause_button["text"] = "Pause"
             stream = request.stream(stream_url) # turn the stream into an iterable; pytube's default chunk size is 9MB
             bytes_downloaded: int = 0
             while True:
@@ -289,7 +288,6 @@ url_label.grid(row = 0, column = 0)
 url_entrybox.grid(row = 1, column = 0)
 search_button.grid(row = 1, column = 1)
 loading_label.grid(row = 2, columnspan = 2)
-loading_label.grid_forget()
 # show threads for debugging
 threads_button = Button(search_frame, text = "Threads", command = show_threads)
 threads_button.grid(row = 0, column = 1)
