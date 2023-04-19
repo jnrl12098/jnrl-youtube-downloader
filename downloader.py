@@ -121,14 +121,14 @@ def advanced_options():
 
 def download_stream():
     global yt, is_paused, is_cancelled  
-    download_button["state"] = DISABLED
-    pause_button["state"] = NORMAL
-    cancel_button["state"] = NORMAL
     stream = yt.streams.get_by_itag(tag_list[options_listbox.curselection()[0]])
     filename: str = filename_entrybox.get() + "." + stream.subtype
     if os.path.exists(filename): # TODO when implementing download queue, must also check if filename has already been taken
         messagebox.showerror(title = "ERROR", message = "File name is already taken.")
         return
+    download_button["state"] = DISABLED
+    pause_button["state"] = NORMAL
+    cancel_button["state"] = NORMAL
     filesize: int = stream.filesize
     stream_url: str = stream.url
     converted_filesize: str = convert_bytes(filesize)
@@ -140,7 +140,6 @@ def download_stream():
             bytes_downloaded: int = 0
             while True:
                 if is_cancelled:
-                    os.remove(filename)
                     break
                 if is_paused:
                     continue
@@ -154,6 +153,8 @@ def download_stream():
                 else:
                     messagebox.showinfo(title = "Information", message = "Download complete.")
                     break
+        if is_cancelled:
+            os.remove(filename)
     except OSError:
         messagebox.showerror(title = "ERROR", message = "File name can't contain any of the following characters:\n\ / : * ? \" < > |")
     download_button["state"] = NORMAL

@@ -4,6 +4,8 @@ YT-DL-GUI Version 0.10
 	* string[0:END:-1] doesn't work; string[0:END][::-1] does (to get the index of whitespace within the char_per_line limit)
 * implemented exception handling for filenames that are invalid or already taken by an existing file
 	* when implementing download queue in the future, must also check if filename was already taken by an item in the queue
+* implemented feature where if the user cancels the download, the incomplete download file is deleted
+* moved the filename check above the configuration of buttons to avoid having to reset the buttons if the filename was already taken
 
 20230418
 YT-DL-GUI Version 0.09
