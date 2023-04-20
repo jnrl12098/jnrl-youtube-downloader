@@ -31,7 +31,23 @@ def search_stream():
         return
     search_is_loading = True
     threading.Thread(target = loading_search, args = (), daemon = True).start()
-    # VIDEO DETAILS
+    """for some reason, loading the streams ahead avoids errors in retrieving data such as yt.title, yt.length, etc."""
+    # try:
+    #     yt.check_availability()
+    # except Exception as e:
+    #     messagebox.showerror(title = "ERROR", message = "The video is not available (" + e + ")")
+    #     search_button["state"] = NORMAL
+    #     return        
+    # yt.bypass_age_gate()
+    count: int = 0
+    while True:
+        try:
+            streams = yt.streams
+            break
+        except KeyError as e:
+            count += 1
+            print(f"Failed to load streams, retrying {count} times")
+    # LOAD SEARCH RESULTS
     try:
         # load the thumbnail into the thumbnail_box
         with urllib.request.urlopen(yt.thumbnail_url) as image_url:
@@ -49,17 +65,12 @@ def search_stream():
         search_is_loading = False
         return
     # for some reason, pytube sometimes cannot properly retrieve the details of the video, requiring us to reload the YouTube object yt until the details are retrieved properly
-    retry_count = 0
     while True:
         try:
             video_title = yt.title
-            print("Successfully retrieved title of video")
             break
         except Exception as e:
             yt = YouTube(youtube_url)
-            retry_count += 1
-            print(e)
-            print(f"Retrying... ({retry_count} time/s)")
             continue
     # slice the video title to shorten the width on display
     char_per_line: int = 40
@@ -103,7 +114,7 @@ def search_stream():
     filename_entrybox.insert(0, video_title)
     tag_list.clear()
     options_listbox.delete(0, END)
-    for stream in yt.streams.filter():
+    for stream in streams:
         # print(stream) # for debugging; to check if tag_list and listbox match
         if stream.type == "video":
             item = stream.type + " - " + stream.resolution + str(stream.fps) + " - " + stream.subtype + " (" + convert_bytes(stream.filesize) + ")"
@@ -123,16 +134,21 @@ def search_stream():
 
 def loading_search():
     global search_is_loading
+    count: float = 0
     while search_is_loading:
-        loading_label["text"] = "Loading"
-        sleep(1)
-        loading_label["text"] = "Loading."
-        sleep(1)
-        loading_label["text"] = "Loading.."
-        sleep(1)
-        loading_label["text"] = "Loading..."
+        count += 1
+        match count % 4:
+            case 1:
+                loading_label["text"] = "Loading"
+            case 2:
+                loading_label["text"] = "Loading."
+            case 3:
+                loading_label["text"] = "Loading.."
+            case _:
+                loading_label["text"] = "Loading..."
         sleep(1)
     loading_label["text"] = " "
+    print(f"Finished in {count} seconds")
     return
 
 def start_search():

@@ -1,3 +1,12 @@
+20230429
+YT-DL-GUI Version 0.13
+* added a timer to the loading_search function to check how long each search takes
+	* initially noticed that each search took around 20 seconds, which felt too slow; tried to check the duration of each major process such as retrieving date_label
+	* found that retrieving the streams took the bulk of the time	
+		* weirdly enough, retrieving the streams first made retrieving the video title and video length FAST (0.1s)
+	* as of now, no way to optimize retrieving the streams without checking under the hood
+* placed retrieving the streams at the top of the search process (right after initializing the youtube object) so that, to the user, everything loads at once
+
 20230419
 YT-DL-GUI Version 0.12
 * implemented download queue, meaning the user can simply add streams to the queue and the streams download in the background
